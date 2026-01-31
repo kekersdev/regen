@@ -1,6 +1,15 @@
 // Copyright 2016 Noel Cower. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be found in the LICENSE.txt file.
 
+// regen is a tool to parse and generate random strings from regular expressions.
+//
+// regen works by parsing a regular expression and walking its op tree. It is currently not guaranteed to produce
+// entirely accurate results, but will at least try.
+//
+// Currently, word boundaries are not supported (until I decide how best to randomly insert a word boundary character).
+// Using a word boundary op (\b or \B) will currently cause regen to panic. In addition, line endings are also poorly
+// supported right now and EOT markers are treated as the end of string generation.
+
 package regen
 
 import (
@@ -10,6 +19,8 @@ import (
 	"math/big"
 	"regexp/syntax"
 )
+
+const DefaultUnboundLimit int = 32
 
 func randint(max int64) int64 {
 	if max < 0 {
@@ -26,7 +37,7 @@ func randint(max int64) int64 {
 	return res.Int64()
 }
 
-// GenString writes a response that should, ideally, be a match for rx to w, and proceeds to do the same for its
+// genString writes a response that should, ideally, be a match for rx to w, and proceeds to do the same for its
 // sub-expressions where applicable. Returns io.EOF if it encounters OpEndText. This may not be entirely correct
 // behavior for OpEndText handling. Otherwise, returns nil.
 func genString(w *bytes.Buffer, rx *syntax.Regexp, ubMax int) (err error) {

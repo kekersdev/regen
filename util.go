@@ -11,23 +11,21 @@ import (
 	"regexp/syntax"
 )
 
-type xegerGenerator struct {
+type XegerGenerator struct {
 	expressions []*syntax.Regexp
 	unboundMax int
 }
 
-const DefaultUnboundLimit int = 32
-
-func NewGenerator(pattern string) (g *xegerGenerator) {
+func NewGenerator(pattern string) (g *XegerGenerator) {
 	g, _ = NewGeneratorAdvanced([]string{pattern}, syntax.Perl, false)
 	return
 }
 
-func NewGeneratorAdvanced(patterns []string, mode syntax.Flags, simplify bool) (*xegerGenerator, error) {
-	g := xegerGenerator{ unboundMax: DefaultUnboundLimit }
+func NewGeneratorAdvanced(patterns []string, mode syntax.Flags, simplify bool) (*XegerGenerator, error) {
+	g := XegerGenerator{ unboundMax: DefaultUnboundLimit }
 	for _, pattern := range patterns {
 		if expr, err := syntax.Parse(pattern, mode); err != nil {
-			return nil, fmt.Errorf("error while parsing regular expression `%q`: %w", pattern, err)
+			return nil, fmt.Errorf("error while initializing generator: failed to parse expression `%q`: %w", pattern, err)
 		} else {
 			if simplify {
 				g.expressions = append(g.expressions, expr.Simplify())
@@ -37,12 +35,12 @@ func NewGeneratorAdvanced(patterns []string, mode syntax.Flags, simplify bool) (
 		}
 	}
 	if len(g.expressions) == 0 {
-		return nil, fmt.Errorf("error while creating generator: at least one pattern must be provided")
+		return nil, fmt.Errorf("error while initializing generator: at least one pattern must be provided")
 	}
 	return &g, nil
 }
 
-func (g *xegerGenerator) SetUnboundLimit(limit int) (ok bool) {
+func (g *XegerGenerator) SetUnboundLimit(limit int) (ok bool) {
 	if limit <= 0 {
 		ok = false
 	} else {
@@ -52,12 +50,12 @@ func (g *xegerGenerator) SetUnboundLimit(limit int) (ok bool) {
 	return
 }
 
-func (g *xegerGenerator) MustGenerate() string {
+func (g *XegerGenerator) MustGenerate() string {
 	str, err := g.Generate()
 	if err != nil { panic(err) } else { return str }
 }
 
-func (g *xegerGenerator) Generate() (str string, err error) {
+func (g *XegerGenerator) Generate() (str string, err error) {
 	defer func() {
 		if cause := recover(); cause != nil {
 			err = fmt.Errorf("error while generating string: %v", cause)
