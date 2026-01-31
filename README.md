@@ -1,42 +1,70 @@
-regen
-=====
+regen (package)
+=======
+This is a fork of [nilium/regen](https://github.com/nilium/regen) transformed into a golang package.
 
-    $ go get go.spiff.io/regen
+# Usage
+```console
+    $ go get github.com/kekersdev/regen
+```
+## Examples
+### Simple
+```golang
+package main
 
-regen is a small tool to generate more or less random strings from Go RE2 regular expressions. You
-can read up on RE2 at <https://github.com/google/re2/wiki/Syntax>.
+import (
+    "fmt"
 
-As a few examples:
+    "github.com/kekersdev/regen"
+)
 
-    $ regen -n 2 '0x[\da-f]{16}'
-    0x8f5858102a5ce124
-    0x3e4c9fee6c9f419d
+func main() {
+    xeger := regen.NewGenerator(`0x[\da-f]{16}`)
+    fmt.Println(xeger.MustGenerate())
+}
+```
+`NewGenerator()` accepts a regular expression as a single parameter, parses it assuming it uses Perl-like syntax and returns a ready-to-use instance of string generator or `nil` in case of an error.
 
-    $ regen -n 3 '[a-z]{6,12}(\+[a-z]{6,12})?@[a-z]{6,16}(\.[a-z]{2,3}){1,2}'
-    iprbph+gqastu@regegzqa.msp
-    abxfcomj@uyzxrgj.kld.pp
-    vzqdrmiz@ewdhsdzshvvxjk.pi
+`MustGenerate()` method returns a new generated string. Will panic if something goes wrong during generation.
 
-Essentially, all regen does is parse the regular expressions it's given and iterate over the tree
-produced by [regexp/syntax](https://golang.org/pkg/regexp/syntax/) and attempt to generate strings
-based on the ops described by its results. This could probably be optimized further by compiling the
-resulting Regexp into a Prog, but I didn't feel like this was worthwhile when it's a very small
-tool.
+### Advanced
+```golang
+package main
 
-Currently, handling word boundaries is not supported and will cause regen to panic in response. The
-way line endings and EOT is handled are also likely incorrect and they'll need some more thinking
-put into them.
+import (
+    "fmt"
+    "regexp/syntax"
 
-Some additional information can be found at <https://godoc.org/go.spiff.io/regen>.
+    "github.com/kekersdev/regen"
+)
 
+func main() {
+    xeger, err := regen.NewGeneratorAdvanced(
+        `[[:alpha:]]\.[[:digit:]]{1,3}`,    // expression
+        syntax.POSIX,                       // parser flags
+        true,                               // option to simplify expression
+    )
 
-Contributing
-------------
-Development of regen is frozen except for bug fixes since it does what I wanted it to do (for the
-most part). My suggestion is to fork it if you have any plans to do more with it, a few others have
-done this (e.g., to turn it into a testing package) to continue it in other directions and that's
-perfectly fine.
+    if err != nil {
+        fmt.Println("Failed to initialize string generator")
+        return
+    }
 
+    // limit for unbound repetitions can be customized
+    xeger.SetUnboundLimit(10)
+
+    if str, err := xeger.Generate(); err != nil {
+        fmt.Println("Failed to generate string")
+    } else {
+        fmt.Println(str)
+    }
+}
+```
+`NewGeneratorAdvanced()` offers more flexibility as it allows to specify parser flags and wether or not the parsed expression should be simplified.
+
+`SetUnboundLimit()` method allows to change the default maximum number of repetitions for patterns with unbound quantifiers (`+`/`*`). _Note: default limit for repetitions is `32`, the same as in the original `regen`._
+
+`Generate()` method works the same as `MustGenerate()` but returns an error alongside the generated string. If an error occurs during generation the returned string will be empty.
+_Note: while the original may panic in certain situations, `Generate()` will instead return an error in such cases._
 
 License
 -------
