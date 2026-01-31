@@ -39,9 +39,12 @@ import (
 
 func main() {
     xeger, err := regen.NewGeneratorAdvanced(
-        `[[:alpha:]]\.[[:digit:]]{1,3}`,    // expression
-        syntax.POSIX,                       // parser flags
-        true,                               // option to simplify expression
+        []string{
+            `[[:alpha:]]\.[[:digit:]]{1,3}`,    // expression
+            `[[:alpha:]]{2,8}`,                 // expression
+        },
+        syntax.POSIX,                           // parser flags
+        true,                                   // option to simplify expression
     )
 
     if err != nil {
@@ -59,7 +62,7 @@ func main() {
     }
 }
 ```
-`NewGeneratorAdvanced()` offers more flexibility as it allows to specify parser flags and wether or not the parsed expression should be simplified.
+`NewGeneratorAdvanced()` offers more flexibility as it allows to specify multiple expressions simultaneously, expression parser flags and wether or not the parsed expressions should be simplified. _Note: when multiple expressions are provided, a random one will be selected for each new string generation._
 
 `SetUnboundLimit()` method allows to change the default maximum number of repetitions for patterns with unbound quantifiers (`+`/`*`). _Note: default limit for repetitions is `32`, the same as in the original `regen`._
 

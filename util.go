@@ -7,29 +7,39 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"math/rand/v2"
 	"regexp/syntax"
 )
 
 type xegerGenerator struct {
-	expression *syntax.Regexp	// TODO: multiple expressions
+	expressions []*syntax.Regexp
 	unboundMax int
 }
 
 const DefaultUnboundLimit int = 32
 
 func NewGenerator(pattern string) (g *xegerGenerator) {
-	g, _ = NewGeneratorAdvanced(pattern, syntax.Perl, false)
+	g, _ = NewGeneratorAdvanced([]string{pattern}, syntax.Perl, false)
 	return
 }
 
-func NewGeneratorAdvanced(pattern string, mode syntax.Flags, simplify bool) (g *xegerGenerator, err error) {
-	g = &xegerGenerator{ unboundMax: DefaultUnboundLimit }
-	g.expression, err = syntax.Parse(pattern, mode)
-	if err != nil {
-		return nil, fmt.Errorf("error while parsing regular expression `%q`: %w", pattern, err)
+func NewGeneratorAdvanced(patterns []string, mode syntax.Flags, simplify bool) (*xegerGenerator, error) {
+	g := xegerGenerator{ unboundMax: DefaultUnboundLimit }
+	for _, pattern := range patterns {
+		if expr, err := syntax.Parse(pattern, mode); err != nil {
+			return nil, fmt.Errorf("error while parsing regular expression `%q`: %w", pattern, err)
+		} else {
+			if simplify {
+				g.expressions = append(g.expressions, expr.Simplify())
+			} else {
+				g.expressions = append(g.expressions, expr)
+			}
+		}
 	}
-	if simplify { g.expression = g.expression.Simplify() }
-	return
+	if len(g.expressions) == 0 {
+		return nil, fmt.Errorf("error while creating generator: at least one pattern must be provided")
+	}
+	return &g, nil
 }
 
 func (g *xegerGenerator) SetUnboundLimit(limit int) (ok bool) {
@@ -56,7 +66,8 @@ func (g *xegerGenerator) Generate() (str string, err error) {
 	}()
 
 	var b bytes.Buffer
-	e := genString(&b, g.expression, g.unboundMax)
+	expr := g.expressions[rand.IntN(len(g.expressions))]
+	e := genString(&b, expr, g.unboundMax)
 	if e != nil && e != io.EOF {
 		err = fmt.Errorf("error while generating string: %w", e)
 		str = ""
