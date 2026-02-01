@@ -4,7 +4,7 @@ This is a fork of [nilium/regen](https://github.com/nilium/regen) transformed in
 
 # Usage
 ```console
-    $ go get github.com/kekersdev/regen
+$ go get github.com/kekersdev/regen
 ```
 ## Examples
 ### Simple

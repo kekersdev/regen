@@ -18,14 +18,14 @@ import (
 //
 // The zero value for Xeger holds no patterns and has the default limit for unbound quantifiers expansion.
 // 
-// All Xeger methods are safe for concurrent use by multiple goroutines
+// All Xeger methods are safe for concurrent use by multiple goroutines.
 type Xeger struct {
 	mutex sync.RWMutex
 	expressions []*syntax.Regexp
 	unboundLimit int
 }
 
-// FromPattern attempts to parse the expression provided in [pattern] assuming it has Perl-like syntax.
+// FromPattern attempts to parse the pattern assuming it has Perl-like syntax.
 // 
 // Returns a ready-to-use instance of Xeger or nil if expression can not be parsed.
 func FromPattern(pattern string) *Xeger {
@@ -34,11 +34,10 @@ func FromPattern(pattern string) *Xeger {
 	if err != nil { return nil } else { return g }
 }
 
-// AddPattern attempts to parse the expression provided in [pattern] and add it to the Xeger instance.
+// AddPattern attempts to parse the pattern and add it to the Xeger instance.
 // 
-// [mode] is used to specify parser flags
-// 
-// [simplify] controls whether parsed expression should be simplified using [(syntax.Regexp).Simplify].
+//   - mode is used to specify parser flags
+//   - simplify controls whether parsed expression should be simplified using [syntax.Regexp.Simplify]
 func (g *Xeger) AddPattern(pattern string, mode syntax.Flags, simplify bool) error {
 	expr, e := syntax.Parse(pattern, mode)
 	if e != nil { return fmt.Errorf("failed to parse pattern `%q`: %w", pattern, e) }
