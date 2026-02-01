@@ -11,15 +11,16 @@ import (
 	"io"
 	"math/rand/v2"
 	"regexp/syntax"
+	"sync"
 )
 
 // A Xeger is a regex-based string generator.
-// 
+//
 // The zero value for Xeger holds no patterns and has the default limit for unbound quantifiers expansion.
 // 
-// A Xeger is safe for concurrent use by multiple goroutines,
-// except for configuration methods ([Xeger.AddPattern] and [Xeger.SetUnboundLimit]).
+// All Xeger methods are safe for concurrent use by multiple goroutines
 type Xeger struct {
+	mutex sync.RWMutex
 	expressions []*syntax.Regexp
 	unboundLimit int
 }
@@ -42,7 +43,9 @@ func (g *Xeger) AddPattern(pattern string, mode syntax.Flags, simplify bool) err
 	expr, e := syntax.Parse(pattern, mode)
 	if e != nil { return fmt.Errorf("failed to parse pattern `%q`: %w", pattern, e) }
 	if simplify { expr = expr.Simplify() }
+	g.mutex.Lock()
 	g.expressions = append(g.expressions, expr)
+	g.mutex.Unlock()
 	return nil
 }
 
@@ -50,7 +53,9 @@ func (g *Xeger) AddPattern(pattern string, mode syntax.Flags, simplify bool) err
 // unbound quantifiers.
 func (g *Xeger) SetUnboundLimit(limit int) error {
 	if limit <= 0 { return fmt.Errorf("failed to set new unbound limit: limit must be positive") }
+	g.mutex.Lock()
 	g.unboundLimit = limit
+	g.mutex.Unlock()
 	return nil
 }
 
@@ -59,28 +64,35 @@ func (g *Xeger) SetUnboundLimit(limit int) error {
 // 
 // Returns an empty string if any errors occur (including the case when Xeger instance does not hold any pattern)
 func (g *Xeger) MustGenerate() string {
+	g.mutex.RLock()
 	str, err := g.Generate()
+	g.mutex.RUnlock()
 	if err != nil { panic(err) } else { return str }
 }
 
 // Generate attempts to generate a string using a pattern from Xeger instance. If multiple patterns are held by
 // Xeger instance, a random one is selected.
 func (g *Xeger) Generate() (str string, err error) {
-	str, e := genStringWrapper(g.expressions, g.unboundLimit)
+	g.mutex.RLock()
+	lim := g.unboundLimit
+	expr, e := g.selectExpression()
+	g.mutex.RUnlock()
+	if e == nil { str, e = genStringWrapper(expr, lim) }
 	if e != nil { err = fmt.Errorf("failed to generate string: %w", e) }
 	return
 }
 
+func (g *Xeger) selectExpression() (*syntax.Regexp, error) {
+	if len(g.expressions) == 0 { return nil, fmt.Errorf("generator does not hold any patterns") }
+	return g.expressions[rand.IntN(len(g.expressions))], nil
+}
+
 // genStringWrapper is used for handling errors that mught arise when calling the original genString method
-func genStringWrapper(expressionList []*syntax.Regexp, unboundLimit int) (str string, err error) {
+func genStringWrapper(expression *syntax.Regexp, unboundLimit int) (str string, err error) {
 	defer func() { if cause := recover(); cause != nil { err = fmt.Errorf("%v", cause) } }()
-
-	if len(expressionList) == 0 { return "", fmt.Errorf("no patterns provided") }
 	if unboundLimit == 0 { unboundLimit = DefaultUnboundLimit }
-
-	expr := expressionList[rand.IntN(len(expressionList))]
 	var b bytes.Buffer
-	err = genString(&b, expr, unboundLimit)
+	err = genString(&b, expression, unboundLimit)
 	if err != nil && err != io.EOF { str = b.String() }
 	return
 }
