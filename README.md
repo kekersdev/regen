@@ -24,7 +24,7 @@ func main() {
 ```
 `FromPattern()` accepts a regular expression as a single parameter, parses it assuming it uses Perl-like syntax and returns a ready-to-use instance of string generator or `nil` in case of an error.
 
-`MustGenerate()` method returns a new generated string. Will panic if something goes wrong during generation.
+`MustGenerate()` method returns a new generated string. Will panic if an error occurs during generation.
 
 ### Advanced
 ```golang
@@ -52,12 +52,12 @@ func main() {
     }
 }
 ```
-`AddPattern()` method offers more flexibility as it allows to specify expression parser flags and wether or not the parsed expressions should be simplified. _Note: when a generator instance holds multiple expressions, a random one will be selected when generating a string._
+`AddPattern()` method offers more flexibility as it allows to specify expression parser flags and wether or not parsed expression should be simplified. _Note: when a generator instance holds multiple expressions, a random one will be selected when generating a string._
 
-`SetUnboundLimit()` method allows to change the default maximum number of repetitions for patterns with unbound quantifiers (`+`/`*`). _Note: default limit for repetitions is `32`, the same as in the original `regen`._
+`SetUnboundLimit()` method allows to change the default maximum number of repetitions for patterns with unbound quantifiers (`+`/`*`). _Note: default limit for repetitions is `32`, the same as for the original **regen**._
 
 `Generate()` method works the same as `MustGenerate()` but returns an error alongside the generated string. If an error occurs during generation the returned string will be empty.
-_Note: while the original regen may panic in certain situations, `Generate()` will return an error instead._
+_Note: while the original **regen** may panic in certain situations, `Generate()` will return an error instead._
 
 License
 -------

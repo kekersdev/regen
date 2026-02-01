@@ -20,6 +20,7 @@ import (
 	"regexp/syntax"
 )
 
+// Default maximum number of repetitions allowed for patterns with unbound quantifiers
 const DefaultUnboundLimit int = 32
 
 func randint(max int64) int64 {
@@ -40,7 +41,7 @@ func randint(max int64) int64 {
 // genString writes a response that should, ideally, be a match for rx to w, and proceeds to do the same for its
 // sub-expressions where applicable. Returns io.EOF if it encounters OpEndText. This may not be entirely correct
 // behavior for OpEndText handling. Otherwise, returns nil.
-func genString(w *bytes.Buffer, rx *syntax.Regexp, ubMax int) (err error) {
+func genString(w *bytes.Buffer, rx *syntax.Regexp, unboundMax int) (err error) {
 	switch rx.Op {
 	case syntax.OpNoMatch:
 		return
@@ -95,17 +96,17 @@ func genString(w *bytes.Buffer, rx *syntax.Regexp, ubMax int) (err error) {
 		if rx.Op == syntax.OpPlus {
 			min = 1
 		}
-		max := min + ubMax
+		max := min + unboundMax
 
 		for sz := min + int(randint(int64(max)-int64(min)+1)); sz > 0; sz-- {
 			for _, rx := range rx.Sub {
-				genString(w, rx, ubMax)
+				genString(w, rx, unboundMax)
 			}
 		}
 	case syntax.OpQuest:
 		if randint(0xFFFFFFFF) > 0x7FFFFFFF {
 			for _, rx := range rx.Sub {
-				if err := genString(w, rx, ubMax); err != nil {
+				if err := genString(w, rx, unboundMax); err != nil {
 					return err
 				}
 			}
@@ -114,11 +115,11 @@ func genString(w *bytes.Buffer, rx *syntax.Regexp, ubMax int) (err error) {
 		min := rx.Min
 		max := rx.Max
 		if max == -1 {
-			max = min + ubMax
+			max = min + unboundMax
 		}
 		for sz := min + int(randint(int64(max)-int64(min)+1)); sz > 0; sz-- {
 			for _, rx := range rx.Sub {
-				if err := genString(w, rx, ubMax); err != nil {
+				if err := genString(w, rx, unboundMax); err != nil {
 					return err
 				}
 			}
@@ -126,13 +127,13 @@ func genString(w *bytes.Buffer, rx *syntax.Regexp, ubMax int) (err error) {
 
 	case syntax.OpConcat, syntax.OpCapture:
 		for _, rx := range rx.Sub {
-			if err := genString(w, rx, ubMax); err != nil {
+			if err := genString(w, rx, unboundMax); err != nil {
 				return err
 			}
 		}
 	case syntax.OpAlternate:
 		nth := randint(int64(len(rx.Sub)))
-		return genString(w, rx.Sub[nth], ubMax)
+		return genString(w, rx.Sub[nth], unboundMax)
 	}
 
 	return nil

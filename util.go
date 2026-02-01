@@ -13,18 +13,32 @@ import (
 	"regexp/syntax"
 )
 
-type XegerGenerator struct {
+// A Xeger is a regex-based string generator.
+// 
+// The zero value for Xeger holds no patterns and has the default limit for unbound quantifiers expansion.
+// 
+// A Xeger is safe for concurrent use by multiple goroutines,
+// except for configuration methods ([Xeger.AddPattern] and [Xeger.SetUnboundLimit]).
+type Xeger struct {
 	expressions []*syntax.Regexp
-	unboundMax int
+	unboundLimit int
 }
 
-func FromPattern(pattern string) *XegerGenerator {
-	g := &XegerGenerator{ unboundMax: DefaultUnboundLimit }
+// FromPattern attempts to parse the expression provided in [pattern] assuming it has Perl-like syntax.
+// 
+// Returns a ready-to-use instance of Xeger or nil if expression can not be parsed.
+func FromPattern(pattern string) *Xeger {
+	g := &Xeger{ unboundLimit: DefaultUnboundLimit }
 	err := g.AddPattern(pattern, syntax.Perl, false)
 	if err != nil { return nil } else { return g }
 }
 
-func (g *XegerGenerator) AddPattern(pattern string, mode syntax.Flags, simplify bool) error {
+// AddPattern attempts to parse the expression provided in [pattern] and add it to the Xeger instance.
+// 
+// [mode] is used to specify parser flags
+// 
+// [simplify] controls whether parsed expression should be simplified using [(syntax.Regexp).Simplify].
+func (g *Xeger) AddPattern(pattern string, mode syntax.Flags, simplify bool) error {
 	expr, e := syntax.Parse(pattern, mode)
 	if e != nil { return fmt.Errorf("failed to parse pattern `%q`: %w", pattern, e) }
 	if simplify { expr = expr.Simplify() }
@@ -32,34 +46,41 @@ func (g *XegerGenerator) AddPattern(pattern string, mode syntax.Flags, simplify 
 	return nil
 }
 
-func (g *XegerGenerator) SetUnboundLimit(limit int) error {
+// SetUnboundLimit is used to update the maximum number of repetitions allowed for patterns with
+// unbound quantifiers.
+func (g *Xeger) SetUnboundLimit(limit int) error {
 	if limit <= 0 { return fmt.Errorf("failed to set new unbound limit: limit must be positive") }
-	g.unboundMax = limit
+	g.unboundLimit = limit
 	return nil
 }
 
-func (g *XegerGenerator) MustGenerate() string {
+// MustGenerate attempts to generate a string using a pattern from Xeger instance. If multiple patterns are
+// held by Xeger instance, a random one is selected.
+// 
+// Returns an empty string if any errors occur (including the case when Xeger instance does not hold any pattern)
+func (g *Xeger) MustGenerate() string {
 	str, err := g.Generate()
 	if err != nil { panic(err) } else { return str }
 }
 
-func (g *XegerGenerator) Generate() (str string, err error) {
-	str, e := genStringWrapper(g.expressions, g.unboundMax)
-	if e != nil {
-		err = fmt.Errorf("failed to generate string: %w", e)
-	}
+// Generate attempts to generate a string using a pattern from Xeger instance. If multiple patterns are held by
+// Xeger instance, a random one is selected.
+func (g *Xeger) Generate() (str string, err error) {
+	str, e := genStringWrapper(g.expressions, g.unboundLimit)
+	if e != nil { err = fmt.Errorf("failed to generate string: %w", e) }
 	return
 }
 
-func genStringWrapper(expressionList []*syntax.Regexp, unboundMax int) (str string, err error) {
+// genStringWrapper is used for handling errors that mught arise when calling the original genString method
+func genStringWrapper(expressionList []*syntax.Regexp, unboundLimit int) (str string, err error) {
 	defer func() { if cause := recover(); cause != nil { err = fmt.Errorf("%v", cause) } }()
 
 	if len(expressionList) == 0 { return "", fmt.Errorf("no patterns provided") }
-	if unboundMax == 0 { unboundMax = DefaultUnboundLimit }
+	if unboundLimit == 0 { unboundLimit = DefaultUnboundLimit }
 
 	expr := expressionList[rand.IntN(len(expressionList))]
 	var b bytes.Buffer
-	err = genString(&b, expr, unboundMax)
+	err = genString(&b, expr, unboundLimit)
 	if err != nil && err != io.EOF { str = b.String() }
 	return
 }
