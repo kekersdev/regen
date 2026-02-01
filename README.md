@@ -18,11 +18,11 @@ import (
 )
 
 func main() {
-    xeger := regen.NewGenerator(`0x[\da-f]{16}`)
+    xeger := regen.FromPattern(`0x[\da-f]{16}`)
     fmt.Println(xeger.MustGenerate())
 }
 ```
-`NewGenerator()` accepts a regular expression as a single parameter, parses it assuming it uses Perl-like syntax and returns a ready-to-use instance of string generator or `nil` in case of an error.
+`FromPattern()` accepts a regular expression as a single parameter, parses it assuming it uses Perl-like syntax and returns a ready-to-use instance of string generator or `nil` in case of an error.
 
 `MustGenerate()` method returns a new generated string. Will panic if something goes wrong during generation.
 
@@ -38,21 +38,11 @@ import (
 )
 
 func main() {
-    xeger, err := regen.NewGeneratorAdvanced(
-        []string{
-            `[[:alpha:]]\.[[:digit:]]{1,3}`,    // expression
-            `[[:alpha:]]{2,8}`,                 // expression
-        },
-        syntax.POSIX,                           // parser flags
-        true,                                   // option to simplify expression
-    )
+    xeger := &XegerGenerator
 
-    if err != nil {
-        fmt.Println("Failed to initialize string generator")
-        return
-    }
+    xeger.AddPattern(`0x[\da-f]{16}`,     syntax.Perl,  false)
+    xeger.AddPattern(`#[[:alpha:]]{5,6}`, syntax.POSIX, true)
 
-    // limit for unbound repetitions can be customized
     xeger.SetUnboundLimit(10)
 
     if str, err := xeger.Generate(); err != nil {
@@ -62,12 +52,12 @@ func main() {
     }
 }
 ```
-`NewGeneratorAdvanced()` offers more flexibility as it allows to specify multiple expressions simultaneously, expression parser flags and wether or not the parsed expressions should be simplified. _Note: when multiple expressions are provided, a random one will be selected for each new string generation._
+`AddPattern()` method offers more flexibility as it allows to specify expression parser flags and wether or not the parsed expressions should be simplified. _Note: when a generator instance holds multiple expressions, a random one will be selected when generating a string._
 
 `SetUnboundLimit()` method allows to change the default maximum number of repetitions for patterns with unbound quantifiers (`+`/`*`). _Note: default limit for repetitions is `32`, the same as in the original `regen`._
 
 `Generate()` method works the same as `MustGenerate()` but returns an error alongside the generated string. If an error occurs during generation the returned string will be empty.
-_Note: while the original may panic in certain situations, `Generate()` will instead return an error in such cases._
+_Note: while the original regen may panic in certain situations, `Generate()` will return an error instead._
 
 License
 -------
